@@ -3,7 +3,7 @@
 
 int main()
 {
-    aint(4294967295);
+    std::cout << aint(65537) << std::endl;
 
     return 0;
 }
