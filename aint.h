@@ -17,7 +17,19 @@ public:
 
     aint(const aint&);
 
+    aint(aint&& other) noexcept;
+
     ~aint();
+
+    aint& operator=(const uint32_t);
+
+    aint& operator=(const aint&);
+
+    aint& operator=(aint&&) noexcept;
+
+    bool zero() const;
+
+    void swap(aint&);
 
 private:
 
