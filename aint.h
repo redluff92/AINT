@@ -51,6 +51,13 @@ private:
 
     // keep track of how many bits in the last / most significant block are actually used
     size_t bits_used = 0;
+
+    // functions for memory management
+    void push_back(uint32_t, size_t = 0, bool = false);
+
+    void reserve(size_t);
+
+    void shrink();
 };
 
 #endif //AINT_AINT_H

@@ -3,7 +3,11 @@
 
 int main()
 {
-    std::cout << aint(65537) << std::endl;
+    aint Test{0};
+
+    std::cin >> Test;
+
+    std::cout << Test << std::endl;
 
     return 0;
 }

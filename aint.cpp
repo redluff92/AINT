@@ -5,27 +5,31 @@
 #include <iostream>
 #include "aint.h"
 
+
+// public member functions
+
 // constructors for "small" long numbers
 aint::aint(const uint32_t value)
 {
     if(value != 0)
     {
+        size_t counter = 32;
+
+        // since value != 0 there has to be a MSB
+        while( !( value & ( 1 << (counter - 1) ) ) )
+            --counter;
+
         capacity = 1;
 
         number_blocks = 1;
 
         storage = new uint32_t{value};
 
-        // count the number of bits used i.e. find the MSB of value
-        // since value != 0 we have guarantee to find a used bit
-        bits_used = 32;
-
-        while( !( value & ( 1 << (bits_used - 1) ) ) )
-            --bits_used;
-
+        bits_used = counter;
     }
 
 }
+
 
 // copy constructor
 aint::aint(const aint& other)
@@ -47,6 +51,7 @@ aint::aint(const aint& other)
             storage[i1] = other.storage[i1];
     }
 }
+
 
 // move constructor
 aint::aint(aint&& other) noexcept
@@ -72,11 +77,13 @@ aint::aint(aint&& other) noexcept
     }
 }
 
+
 // destructor does not to be virtual since inheritance is disabled
 aint::~aint()
 {
     delete[] storage;
 }
+
 
 // copy assignment from uint32_t
 aint& aint::operator=(const uint32_t other)
@@ -86,6 +93,7 @@ aint& aint::operator=(const uint32_t other)
 
     return *this;
 }
+
 
 // copy assignment
 aint& aint::operator=(const aint& other)
@@ -107,7 +115,7 @@ aint& aint::operator=(const aint& other)
 
     if(number_blocks)
     {
-        storage = new uint32_t[capacity];
+        storage = new uint32_t[capacity]{0};
 
         for (size_t i1 = 0; i1 < number_blocks; ++i1)
             storage[i1] = other.storage[i1];
@@ -115,6 +123,7 @@ aint& aint::operator=(const aint& other)
 
     return *this;
 }
+
 
 // move assignment
 aint& aint::operator=(aint&& other) noexcept
@@ -144,11 +153,13 @@ aint& aint::operator=(aint&& other) noexcept
     return *this;
 }
 
+
 // check if object contains a number
 bool aint::zero() const
 {
     return !number_blocks;
 }
+
 
 // swaps values of two aints
 void aint::swap(aint& other)
@@ -158,6 +169,86 @@ void aint::swap(aint& other)
     other = std::move(*this);
 
     *this = std::move(temp);
+}
+
+
+// private memmber functions
+
+void aint::push_back(uint32_t block, size_t counter, bool isvalid)
+{
+    // isvalid indicates whether counter represents the true number of bits used in block
+    if(!isvalid && block)
+    {
+        counter = 32;
+
+        while(! (block & (1 << (counter - 1) ) ) )
+            --counter;
+    }
+    else if(!isvalid)
+        counter = 32;
+
+    bits_used = counter;
+
+    if(number_blocks == capacity)
+        reserve(static_cast<size_t>(number_blocks * 1.5l) + 1);
+
+    storage[number_blocks] = block;
+
+    ++number_blocks;
+}
+
+
+void aint::reserve(size_t new_cap)
+{
+    // it must be ensured that new_cap >= number_blocks
+    if(!new_cap)
+        return;
+
+    auto temp_storage = new uint32_t[new_cap]{0};
+
+    for(size_t i1 = 0; i1 < number_blocks; ++i1)
+        temp_storage[i1] = storage[i1];
+
+    // release owned resources
+    delete[] storage;
+
+    storage = temp_storage;
+
+    capacity = new_cap;
+}
+
+
+void aint::shrink()
+{
+    // releases parts of the owned resources
+    size_t used_blocks = capacity;
+
+    while(used_blocks && !storage[used_blocks - 1])
+        --used_blocks;
+
+    // set the object to zero if the entire storage is empty
+    if(!used_blocks)
+    {
+        *this = aint{0};
+
+        return;
+    }
+
+    else
+    {
+        number_blocks = used_blocks;
+
+        size_t bits = 32;
+
+        while( !(storage[number_blocks - 1] & (1<<(bits - 1))))
+            --bits;
+
+        bits_used = bits;
+    }
+
+    if(capacity > (number_blocks * 1.5l + 1))
+        reserve(static_cast<size_t>(number_blocks * 1.5l) +1);
+
 }
 
 // non-member functions
@@ -199,9 +290,12 @@ std::ostream& operator<<(std::ostream& out, const aint& num)
     return out;
 }
 
+
 // input from a stream of 1s and 0s where the order is reversed i.e. LSB to MSB
 std::istream& operator>>(std::istream& in, aint& num)
 {
+    // if the users does't enter any valid number at all num shall take the value of zero
+    // the sequence has to end with "1" otherwise there is no guarantee for the correct functionality of aint
     aint temp{0};
 
     uint32_t block = 0;
@@ -213,21 +307,20 @@ std::istream& operator>>(std::istream& in, aint& num)
 
     while((input = in.get()) != '\n')
     {
-        if(input == 49) // the input is char "1"
+        if(input == '1')
         {
             block |= (1 << counter);
 
             ++counter;
         }
-        else if(input == 48) //the input is char "0"
+        else if(input == '0')
             ++counter;
         // ignore all other characters
 
         // check if the current block is full
-
         if(counter == 32)
         {
-            temp.push_back(block); //TODO: implement function push_back
+            temp.push_back(block, counter, true);
 
             block = 0;
 
@@ -235,7 +328,14 @@ std::istream& operator>>(std::istream& in, aint& num)
         }
     }
 
-    temp.bits_used = counter;
+    // check if '\n' popped up while still filling a block
+    if(block)
+        temp.push_back(block, counter, true);
 
+    num = std::move(temp);
 
+    return in;
 }
+
+
+
