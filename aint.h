@@ -33,9 +33,13 @@ public:
     void swap(aint&);
 
     // non-member functions
+
+    // I/O handling
     friend std::ostream& operator<<(std::ostream&,const aint&);
 
     friend std::istream& operator>>(std::istream&, aint&);
+
+    // comparison handling
 
     friend bool operator==(const aint&, const aint&);
 
@@ -48,6 +52,21 @@ public:
     friend bool operator>(const aint&, const aint&);
 
     friend bool operator>=(const aint&, const aint&);
+
+    // binary arithmetic operators
+    friend aint operator+(const aint&, const aint&);
+
+    friend aint operator-(const aint&, const aint&);
+
+    friend aint operator*(const aint&, const aint&);
+
+    friend aint operator/(const aint&, const aint&);
+
+    friend aint operator%(const aint&, const aint&);
+
+    friend aint operator<<(const aint&, size_t);
+
+    friend aint operator>>(const aint&, size_t);
 
 private:
 

@@ -39,7 +39,7 @@ aint::aint(const aint& other)
         // intended cropping when converting to size_t
         // reserve some headroom to avoid immediate reallocation for arithmetic operators
         // don't use other.capacity since it might be that other.capacity == other.number_blocks already
-        capacity = static_cast<size_t>(other.number_blocks * 1.5l);
+        capacity = static_cast<size_t>(other.number_blocks * 1.5l) + 1;
 
         number_blocks = other.number_blocks;
 
@@ -107,7 +107,7 @@ aint& aint::operator=(const aint& other)
     // intended cropping when converting to size_t
     // reserve some headroom to avoid immediate reallocation for arithmetic operators
     // don't use other.capacity since it might be that other.capacity == other.number_blocks already
-    capacity = static_cast<size_t>(other.number_blocks * 1.5l);
+    capacity = static_cast<size_t>(other.number_blocks * 1.5l) + 1;
 
     number_blocks = other.number_blocks;
 
@@ -417,5 +417,56 @@ bool operator>=(const aint& a, const aint& b)
 }
 
 
+// add the numbers together into a new aint object
+aint operator+(const aint& a, const aint& b)
+{
+    if(a.zero())
+        return b;
+
+    else if(b.zero())
+        return a;
+
+    aint result{};
+
+    // reserve enough memory to store addition result and have some extra space
+    result.reserve( a.number_blocks >= b.number_blocks
+                    ? static_cast<size_t>(a.number_blocks * 1.5l) + 1
+                    : static_cast<size_t>(b.number_blocks * 1.5l) + 1);
+
+    uint64_t add_res = 0;
+
+    uint64_t overflow = 0;
+
+    for(size_t i1 = 0; i1 < a.number_blocks || i1 < b.number_blocks; ++i1)
+    {
+        if(i1 < a.number_blocks)
+            add_res += a.storage[i1];
+
+        if(i1 < b.number_blocks)
+            add_res += b.storage[i1];
+
+        overflow = add_res >>32;
+
+        // intended cropping when casting to uint32_t
+        // overflow signals to push_back whether the counter is actually valid
+        result.push_back(static_cast<uint32_t>(add_res), 32, static_cast<bool>(overflow));
+
+        add_res = overflow;
+    }
+
+    // there could be an overflow left
+    if(add_res)
+        result.push_back(static_cast<uint32_t>(add_res), 32, false);
+
+    return result;
+}
+
+aint operator-(const aint& a, const aint& b)
+{
+    // instead of negative numbers zero shall be returned
+    if(a.zero() || b.zero())
+        return a;
 
 
+
+}
