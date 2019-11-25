@@ -201,6 +201,7 @@ void aint::push_back(uint32_t block, size_t counter, bool isvalid)
 void aint::reserve(size_t new_cap)
 {
     // it must be ensured that new_cap >= number_blocks
+    // since this functions is private it is the classes responsibility to call it correctly
     if(!new_cap)
         return;
 
@@ -294,7 +295,7 @@ std::ostream& operator<<(std::ostream& out, const aint& num)
 // input from a stream of 1s and 0s where the order is reversed i.e. LSB to MSB
 std::istream& operator>>(std::istream& in, aint& num)
 {
-    // if the users does't enter any valid number at all num shall take the value of zero
+    // if the users doesn't enter any valid number at all num shall take the value of zero
     // the sequence has to end with "1" otherwise there is no guarantee for the correct functionality of aint
     aint temp{0};
 
@@ -336,6 +337,85 @@ std::istream& operator>>(std::istream& in, aint& num)
 
     return in;
 }
+
+
+// check for equal values
+bool operator==(const aint& a, const aint& b)
+{
+    // check separately because in this case accessing storage would result in segmentation fault
+    if(a.zero() && b.zero())
+        return true;
+
+    // if these values differ the numbers can't be the same
+    else if( (a.number_blocks != b.number_blocks) || (a.bits_used != b.bits_used))
+        return false;
+
+    else
+    {
+        // at this point a.number_blocks == b.number_blocks
+        for(size_t i1 = 0; i1 < a.number_blocks; ++i1)
+        {
+            if(a.storage[i1] != b.storage[i1])
+                return false;
+        }
+
+        return true;
+    }
+}
+
+
+// check for unequal values by using the operator for equality
+bool operator!=(const aint& a, const aint& b)
+{
+    return !(a==b);
+}
+
+
+// check if the first number is smaller than the second
+bool operator<(const aint& a, const aint& b)
+{
+    // number a can never be less than zero
+    if(b.zero())
+        return false;
+
+    else if(a.number_blocks < b.number_blocks)
+        return true;
+
+    else if( (a.number_blocks == b.number_blocks) && (a.bits_used < b.bits_used))
+        return true;
+
+    else
+        // at this point a.number_blocks == b.number_blocks
+        for(size_t i1 = a.number_blocks; i1 > 0; --i1)
+        {
+            if(a.storage[i1-1] < b.storage[i1-1])
+                return true;
+        }
+
+        return false;
+}
+
+
+// check if the first number is smaller or equal than the second number using corresponding operators
+bool operator<=(const aint& a, const aint& b)
+{
+    return ( (a==b) || (a<b));
+}
+
+
+// check if the first number is larger than the second number using the <= operator
+bool operator>(const aint& a, const aint& b)
+{
+    return !(a<=b);
+}
+
+
+// check if the first number is larger or equal to the second number
+bool operator>=(const aint& a, const aint& b)
+{
+    return !(a<b);
+}
+
 
 
 

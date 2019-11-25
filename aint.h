@@ -37,6 +37,18 @@ public:
 
     friend std::istream& operator>>(std::istream&, aint&);
 
+    friend bool operator==(const aint&, const aint&);
+
+    friend bool operator!=(const aint&, const aint&);
+
+    friend bool operator<(const aint&, const aint&);
+
+    friend bool operator<=(const aint&, const aint&);
+
+    friend bool operator>(const aint&, const aint&);
+
+    friend bool operator>=(const aint&, const aint&);
+
 private:
 
     // reserved storage
