@@ -3,7 +3,15 @@
 
 int main()
 {
-    std::cout << aint{37449} << std::endl;
+    aint first{0};
+
+    aint second{0};
+
+    std::cin >> first;
+
+    std::cin >> second;
+
+    std::cout << (first - second) << std::endl;
 
     return 0;
 }

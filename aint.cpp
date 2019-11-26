@@ -461,12 +461,57 @@ aint operator+(const aint& a, const aint& b)
     return result;
 }
 
+
+// subtract b from a or return 0 if a <= b
 aint operator-(const aint& a, const aint& b)
 {
     // instead of negative numbers zero shall be returned
     if(a.zero() || b.zero())
         return a;
 
+    else if(a <= b)
+        return aint{};
 
+    // create a copy of a which will later also store the result of
+    aint result {a};
 
+    // create the twos complement of b and use the add operator to add it to a
+    aint neg{};
+
+    neg.reserve(a.number_blocks + 1);
+
+    // twos complement of b needs to have exactly the same length as a
+    for(size_t i1 = 0; i1 < a.number_blocks; ++i1)
+    {
+        // use negated block from b....
+        if(i1 < b.number_blocks)
+            neg.push_back(~b.storage[i1], 32, true);
+
+        // ...or use negated empty block to fill up to the same length
+        else
+            neg.push_back(~static_cast<uint32_t>(0), 32, true);
+    }
+
+    //TODO: use += operator once implemented
+    neg = neg + aint{1};
+
+    // add result and neg together and
+    uint64_t add_res = 0;
+
+    for(size_t i1 = 0; i1 < result.number_blocks; ++i1)
+    {
+        add_res += result.storage[i1];
+
+        add_res += neg.storage[i1];
+
+        result.storage[i1] = static_cast<uint32_t>(add_res);
+
+        add_res >>=32;
+    }
+
+    // there will be some overflow left in add_res in the end which is supposed to be ignored
+
+    result.shrink();
+    std::cout << "Number blocks: " << result.number_blocks << " and capacity: " << result.capacity << std::endl;
+    return result;
 }
