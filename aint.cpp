@@ -566,3 +566,65 @@ aint operator*(const aint& a, const aint& b)
 
     return result;
 }
+
+
+//TODO: implementation of division and modulo
+
+// shift bits from LSB to MSB
+aint operator<<(const aint& num, size_t shifts)
+{
+    if(!shifts)
+        return num;
+
+    else if(num.zero())
+        return aint{0};
+
+    aint result{};
+
+    // number of additional empty blocks created by the shift
+    size_t add_blocks = shifts / 32;
+
+    shifts %= 32;
+
+    // reserve memory for the result and additional space
+    // since numbers can use up space for additional blocks very quickly when shifting
+    // reservation of memory is limited to 50 additional blocks as a reserve
+    result.reserve(static_cast<size_t>((num.number_blocks + add_blocks) * 1.5l) +1
+                   < (num.number_blocks + add_blocks + 50)
+                   ? static_cast<size_t>((num.number_blocks + add_blocks) * 1.5l) +1
+                   : (num.number_blocks + add_blocks + 50));
+
+
+    size_t counter_shifts = (32 - shifts);
+
+    for(size_t i1 = num.number_blocks; i1 > 0; --i1)
+    {
+        result.storage[i1 + add_blocks] |= (num.storage[i1 -1] >> counter_shifts);
+
+        result.storage[i1 + add_blocks - 1] = (num.storage[i1 - 1] << shifts);
+    }
+
+    // set the correct values for result
+
+    result.number_blocks = add_blocks + num.number_blocks;
+
+    if(result.storage[result.number_blocks])
+    {
+        ++result.number_blocks;
+
+        result.bits_used = num.bits_used + shifts - 32;
+    }
+
+    else
+        result.bits_used = num.bits_used + shifts;
+
+    return result;
+}
+
+
+// shift bits from MSB to LSB
+aint operator>>(const aint& num, size_t shifts)
+{
+
+}
+
