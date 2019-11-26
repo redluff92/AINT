@@ -3,15 +3,13 @@
 
 int main()
 {
-    aint first{0};
-
-    aint second{0};
+    aint first{}, second{};
 
     std::cin >> first;
 
     std::cin >> second;
 
-    std::cout << (first - second) << std::endl;
+    std::cout << (first * second) << std::endl;
 
     return 0;
 }

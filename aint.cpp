@@ -512,6 +512,57 @@ aint operator-(const aint& a, const aint& b)
     // there will be some overflow left in add_res in the end which is supposed to be ignored
 
     result.shrink();
-    std::cout << "Number blocks: " << result.number_blocks << " and capacity: " << result.capacity << std::endl;
+
+    return result;
+}
+
+
+// multiply two numbers together
+aint operator*(const aint& a, const aint& b)
+{
+    if(a.zero() || b.zero())
+        return aint{0};
+
+    aint result{};
+
+    // reserve enough memory to store multiplication result and have some extra space
+    result.reserve(static_cast<size_t>((a.number_blocks + b.number_blocks) * 1.5l) +1);
+
+    uint64_t mult_res = 0;
+
+    for(size_t i1 = 0; i1 < b.number_blocks; ++i1)
+    {
+        for(size_t i2 = 0; i2 < a.number_blocks; ++i2)
+        {
+            mult_res = a.storage[i2] * b.storage[i1];
+
+            // write the potential overflow to the correct position in result
+            for(size_t i3 = i1 + i2; mult_res > 0; ++i3)
+            {
+                mult_res += result.storage[i3];
+
+                // intended cropping when converting to uint32_t
+                result.storage[i3] = static_cast<uint32_t>(mult_res);
+
+                mult_res >>= 32;
+            }
+        }
+    }
+    // adjust number_blocks and bits_used for result without calling shrink() since this might move all the values
+
+    size_t used_blocks = a.number_blocks + b.number_blocks;
+
+    while(!result.storage[used_blocks -1])
+        --used_blocks;
+
+    result.number_blocks = used_blocks;
+
+    size_t bits = 32;
+
+    while(!(result.storage[result.number_blocks -1] & (1 <<(bits-1))))
+        --bits;
+
+    result.bits_used = bits;
+
     return result;
 }
