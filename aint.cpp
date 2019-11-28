@@ -581,25 +581,25 @@ aint operator<<(const aint& num, size_t shifts)
 
     aint result{};
 
-    // number of additional empty blocks created by the shift
+    // number of additional empty blocks created by the shift. Those blocks represent the LSBs of the number
     size_t add_blocks = shifts / 32;
 
     shifts %= 32;
 
     // reserve memory for the result and additional space
     // since numbers can use up space for additional blocks very quickly when shifting
-    // reservation of memory is limited to 50 additional blocks as a reserve
+    // reservation of memory is limited to 50 additional blocks as a buffer
     result.reserve(static_cast<size_t>((num.number_blocks + add_blocks) * 1.5l) +1
                    < (num.number_blocks + add_blocks + 50)
                    ? static_cast<size_t>((num.number_blocks + add_blocks) * 1.5l) +1
                    : (num.number_blocks + add_blocks + 50));
 
-
     size_t counter_shifts = (32 - shifts);
 
-    for(size_t i1 = num.number_blocks; i1 > 0; --i1)
+    for (size_t i1 = num.number_blocks; i1 > 0; --i1)
     {
-        result.storage[i1 + add_blocks] |= (num.storage[i1 -1] >> counter_shifts);
+        if(shifts)
+            result.storage[i1 + add_blocks] |= (num.storage[i1 - 1] >> counter_shifts);
 
         result.storage[i1 + add_blocks - 1] = (num.storage[i1 - 1] << shifts);
     }
