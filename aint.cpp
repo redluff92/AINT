@@ -573,11 +573,8 @@ aint operator*(const aint& a, const aint& b)
 // shift bits from LSB to MSB
 aint operator<<(const aint& num, size_t shifts)
 {
-    if(!shifts)
+    if(!shifts || num.zero())
         return num;
-
-    else if(num.zero())
-        return aint{0};
 
     aint result{};
 
@@ -625,6 +622,45 @@ aint operator<<(const aint& num, size_t shifts)
 // shift bits from MSB to LSB
 aint operator>>(const aint& num, size_t shifts)
 {
+    if(!shifts || num.zero())
+        return num;
 
+    // number of blocks that will be cut off entirely by the shift
+    size_t cut_blocks = shifts / 32;
+
+    shifts %= 32;
+
+    aint result{};
+
+    // check if the entire number will be cut off
+    if(cut_blocks >= num.number_blocks || ((cut_blocks +1 == num.number_blocks) && (num.bits_used <= shifts)))
+        return result;
+
+    // reserve memory for the result and additional space
+    result.reserve(static_cast<size_t>((num.number_blocks - cut_blocks) *1.5l) +1);
+
+    size_t counter_shifts = (32 - shifts);
+
+    for(size_t i1 = 0; i1 < (num.number_blocks - cut_blocks); ++i1)
+    {
+        result.storage[i1] = (num.storage[i1 + cut_blocks] >> shifts);
+
+        if(i1 && shifts)
+            result.storage[i1 -1] |= (num.storage[i1 + cut_blocks] << counter_shifts);
+    }
+
+    result.number_blocks = num.number_blocks - cut_blocks;
+
+    if(!result.storage[result.number_blocks - 1])
+    {
+        --result.number_blocks;
+
+        result.bits_used = num.bits_used + 32 - shifts;
+    }
+
+    else
+        result.bits_used = num.bits_used - shifts;
+
+    return result;
 }
 

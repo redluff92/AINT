@@ -7,7 +7,7 @@ int main()
 
     std::cin >> test;
 
-    std::cout << (test << 65) << std::endl;
+    std::cout << (test >> 75) << std::endl;
 
     return 0;
 }
