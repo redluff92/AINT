@@ -23,7 +23,7 @@ aint::aint(const uint32_t value)
 
         number_blocks = 1;
 
-        storage = new uint32_t{value};
+        storage = new uint32_t[1]{value};
 
         bits_used = counter;
     }
@@ -169,6 +169,54 @@ void aint::swap(aint& other)
     other = std::move(*this);
 
     *this = std::move(temp);
+}
+
+
+// adds the number to the object
+aint& aint::operator+=(const aint& b)
+{
+    *this = (*this + b);
+
+    return *this;
+}
+
+
+// subtracts the number from the object
+aint& aint::operator-=(const aint& b)
+{
+    *this = (*this - b);
+
+    return *this;
+}
+
+
+// multiply the object with the number
+aint& aint::operator*=(const aint& b)
+{
+    *this = (*this * b);
+
+    return *this;
+}
+
+
+//TODO: implementation of operator/= and operator%=
+
+
+// shifts the bits in the object by the number from LSB to MSB
+aint& aint::operator<<=(size_t shifts)
+{
+    *this = (*this << shifts);
+
+    return *this;
+}
+
+
+// shifts the bits in the object by the number from MSB to LSB
+aint& aint::operator>>=(size_t shifts)
+{
+    *this = (*this >> shifts);
+
+    return *this;
 }
 
 
@@ -381,8 +429,14 @@ bool operator<(const aint& a, const aint& b)
     else if(a.number_blocks < b.number_blocks)
         return true;
 
-    else if( (a.number_blocks == b.number_blocks) && (a.bits_used < b.bits_used))
+    else if(a.number_blocks > b.number_blocks)
+        return false;
+
+    else if((a.number_blocks == b.number_blocks) && (a.bits_used < b.bits_used))
         return true;
+
+    else if((a.number_blocks == b.number_blocks) && (a.bits_used > b.bits_used))
+        return false;
 
     else
         // at this point a.number_blocks == b.number_blocks
@@ -492,10 +546,9 @@ aint operator-(const aint& a, const aint& b)
             neg.push_back(~static_cast<uint32_t>(0), 32, true);
     }
 
-    //TODO: use += operator once implemented
-    neg = neg + aint{1};
+    neg += aint{1};
 
-    // add result and neg together and
+    // add result and neg together
     uint64_t add_res = 0;
 
     for(size_t i1 = 0; i1 < result.number_blocks; ++i1)
@@ -567,8 +620,64 @@ aint operator*(const aint& a, const aint& b)
     return result;
 }
 
-
 //TODO: implementation of division and modulo
+// divide the first number by the scond number (integer division)
+aint operator/(const aint& a, const aint& b)
+{
+    // division by zero will return zero
+    if (b.zero() || (a < b))
+        return aint{};
+
+    aint quotient{};
+
+    // since the quotient can never be larger than the original number memory reservation can be done more conservative
+    quotient.reserve(a.number_blocks + 1);
+
+    aint remainder{};
+
+    // same consideration for the remainder as for the quotient
+    remainder.reserve(a.number_blocks + 1);
+
+    for(size_t i1 = a.number_blocks; i1 > 0; --i1)
+    {
+        size_t used_bits = (i1 == a.number_blocks)
+                            ? a.bits_used
+                            : 32;
+
+        for(size_t i2 = used_bits; i2 > 0; --i2)
+        {
+            uint32_t  bit = (a.storage[i1-1] & (1 << (i2-1)));
+
+            if(!remainder.zero())
+                remainder <<= 1;
+
+            if(remainder.zero() && bit)
+            {
+                remainder.number_blocks = 1;
+
+                remainder.bits_used = 1;
+
+                remainder.storage[0] = 1;
+            }
+
+            else if(bit)
+                remainder.storage[0] |= 1;
+
+            if(remainder >= b)
+            {
+                remainder -= b;
+
+                quotient.storage[i1-1] |= (1 << (i2-1));
+            }
+        }
+
+    }
+
+    quotient.shrink();
+
+    return quotient;
+}
+
 
 // shift bits from LSB to MSB
 aint operator<<(const aint& num, size_t shifts)

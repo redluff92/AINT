@@ -3,11 +3,15 @@
 
 int main()
 {
-    aint test{};
+    aint a{};
 
-    std::cin >> test;
+    aint b{};
 
-    std::cout << (test >> 75) << std::endl;
+    std::cin >> a;
+
+    std::cin >> b;
+
+    std::cout << (a / b) << std::endl;
 
     return 0;
 }

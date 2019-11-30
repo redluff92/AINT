@@ -32,15 +32,29 @@ public:
 
     void swap(aint&);
 
+    // accumulative operators
+    aint& operator+=(const aint&);
+
+    aint& operator-=(const aint&);
+
+    aint&operator*=(const aint&);
+
+    aint& operator/=(const aint&);
+
+    aint&operator%=(const aint&);
+
+    aint& operator<<=(size_t);
+
+    aint& operator>>=(size_t);
+
     // non-member functions
 
-    // I/O handling
+    // I/O operators
     friend std::ostream& operator<<(std::ostream&,const aint&);
 
     friend std::istream& operator>>(std::istream&, aint&);
 
-    // comparison handling
-
+    // comparison operators
     friend bool operator==(const aint&, const aint&);
 
     friend bool operator!=(const aint&, const aint&);
@@ -80,7 +94,7 @@ private:
     // the least significant block is at position [0] but the bits within a specific block are ordered from MSB to LSB
     uint32_t* storage = nullptr;
 
-    // keep track of how many bits in the last / most significant block are actually used
+    // keep track of how many bits in the last i.e. most significant block are actually used
     size_t bits_used = 0;
 
     // functions for memory management
