@@ -199,7 +199,22 @@ aint& aint::operator*=(const aint& b)
 }
 
 
-//TODO: implementation of operator/= and operator%=
+// divide the object by the number (integer division)
+aint& aint::operator/=(const aint& b)
+{
+    *this = (*this / b);
+
+    return *this;
+}
+
+
+// divide the object by the number and store the remainder in the object
+aint& aint::operator%=(const aint& b)
+{
+    *this = (*this % b);
+
+    return *this;
+}
 
 
 // shifts the bits in the object by the number from LSB to MSB
@@ -562,7 +577,9 @@ aint operator-(const aint& a, const aint& b)
         add_res >>=32;
     }
 
-    // there will be some overflow left in add_res in the end which is supposed to be ignored
+    // there will be some overflow left in add_res in the end which must be set to zero for shrink() to work
+    for(size_t i1 = result.number_blocks; i1 < result.capacity; ++i1)
+        result.storage[i1] = 0;
 
     result.shrink();
 
@@ -620,13 +637,16 @@ aint operator*(const aint& a, const aint& b)
     return result;
 }
 
-//TODO: implementation of division and modulo
-// divide the first number by the scond number (integer division)
+
+// divide the first number by the second number (integer division)
 aint operator/(const aint& a, const aint& b)
 {
     // division by zero will return zero
     if (b.zero() || (a < b))
         return aint{};
+
+    if(b == aint{1})
+        return a;
 
     aint quotient{};
 
@@ -634,9 +654,6 @@ aint operator/(const aint& a, const aint& b)
     quotient.reserve(a.number_blocks + 1);
 
     aint remainder{};
-
-    // same consideration for the remainder as for the quotient
-    remainder.reserve(a.number_blocks + 1);
 
     for(size_t i1 = a.number_blocks; i1 > 0; --i1)
     {
@@ -652,13 +669,7 @@ aint operator/(const aint& a, const aint& b)
                 remainder <<= 1;
 
             if(remainder.zero() && bit)
-            {
-                remainder.number_blocks = 1;
-
-                remainder.bits_used = 1;
-
-                remainder.storage[0] = 1;
-            }
+                remainder = aint{1};
 
             else if(bit)
                 remainder.storage[0] |= 1;
@@ -676,6 +687,58 @@ aint operator/(const aint& a, const aint& b)
     quotient.shrink();
 
     return quotient;
+}
+
+// TODO: check if any changes must be made from division template
+//  return the remainder of dividing the first number by the second number
+aint operator%(const aint& a, const aint& b)
+{
+    // modulo by zero will return the original number
+    if (b.zero() || (a < b))
+        return a;
+
+    if((b == aint{1}) || (a == b))
+        return aint{};
+
+    aint quotient{};
+
+    // since the quotient can never be larger than the original number memory reservation can be done more conservative
+    quotient.reserve(a.number_blocks + 1);
+
+    aint remainder{};
+
+    for(size_t i1 = a.number_blocks; i1 > 0; --i1)
+    {
+        size_t used_bits = (i1 == a.number_blocks)
+                            ? a.bits_used
+                            : 32;
+
+        for(size_t i2 = used_bits; i2 > 0; --i2)
+        {
+            uint32_t  bit = (a.storage[i1-1] & (1 << (i2-1)));
+
+            if(!remainder.zero())
+                remainder <<= 1;
+
+            if(remainder.zero() && bit)
+                remainder = aint{1};
+
+            else if(bit)
+                remainder.storage[0] |= 1;
+
+            if(remainder >= b)
+            {
+                remainder -= b;
+
+                quotient.storage[i1-1] |= (1 << (i2-1));
+            }
+        }
+
+    }
+
+    remainder.shrink();
+
+    return remainder;
 }
 
 
