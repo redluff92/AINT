@@ -3,6 +3,7 @@
 #include <utility>
 #include "aint.hpp"
 
+
 aint gcd(aint a, aint b) {
     if(a<b) a.swap(b);
     for(;;) {
@@ -11,7 +12,7 @@ aint gcd(aint a, aint b) {
         a.swap(b);
     }
 }
-
+/*
 int main() {
     std::list<aint> l;
     aint tmp;
@@ -28,6 +29,21 @@ int main() {
     for(auto&n:l) tmp = gcd(tmp, n);
 
     std::cout << tmp << std::endl;
+
+    return 0;
+}*/
+
+int main()
+{
+    aint number1{};
+
+    aint number2{};
+
+    std::cin >> number1;
+
+    std::cin >> number2;
+
+    std::cout << gcd(number1, number2) << std::endl;
 
     return 0;
 }

@@ -226,11 +226,13 @@ bool aint::zero() const
 // swaps values of two aints
 void aint::swap(aint& other)
 {
-    aint temp = std::move(other);
+    std::swap(capacity, other.capacity);
 
-    other = std::move(*this);
+    std::swap(number_blocks, other.number_blocks);
 
-    *this = std::move(temp);
+    std::swap(storage, other.storage);
+
+    std::swap(bits_used, other.bits_used);
 }
 
 
