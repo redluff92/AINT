@@ -97,7 +97,7 @@ private:
     // keep track of how many bits in the last i.e. most significant block are actually used
     size_t bits_used = 0;
 
-    // functions for memory management
+    // internal functions for memory management
     void push_back(uint32_t, size_t = 0, bool = false);
 
     void reserve(size_t);

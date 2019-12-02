@@ -2,9 +2,71 @@
 // Created by Ralf Burkhardt on 23/11/19.
 //
 
+/* Introduction
+ *
+ * !!! WARNING !!!
+ * ! The program works almost perfectly fine with one exception.
+ * ! When using std::cin and the corresponding operator>> the syntax
+ * ! while(std::cin >> aint) does not work properly.
+ * ! The program runs to the end (as it can be seen when looking at the exit code)
+ * ! but all io-streams seem to be broken meaning that even simple outputs like
+ * ! std::cout << "Hello World" << std::endl; will not be printed anymore.
+ * ! The program works fine when the input is NOT ended by the EOF but rather by the loop.
+ * !
+ * ! This means the following will NOT work:
+ * !    aint temp{};
+ * !    while(std::cin >> temp){
+ * !        //do stuff;
+ * !    }
+ * !
+ * ! Whereas this will work:
+ * !    aint temp{};
+ * !    for(size_t i1 = 0; i < N; ++i){
+ * !        // do stuff
+ * !    }
+ * !
+ * ! I think this has to do with the bit flags but I can't figure out why the input stream breaks the output stream!
+ * ! As mentioned above the program finishes with the correct exit code and when inspected in a debugger one can see
+ * ! that variables get updated and computed correctly.
+ * !
+ * ! Again, this is not an error in the arithmetic operators but simply a bug in the io-streams
+ * ! so the program can be tested using above described for loops
+ *
+ *
+ * The program works roughly like this:
+ *
+ * A number consists of multiple "blocks" which are stored in an dynamic array. Each block is of data type uint32_t.
+ * The blocks in the array are stored from LSB to MSB but the bits in a block are stored from MSB to LSB.
+ * The container therefore has to be read somewhat similar to a hebrew book where you would read from first to last
+ * page but on each page you would read from right to left.
+ *
+ * When reading in input we fill a block until we have read in 32 bits and then we append the block to the container
+ * using the function push_back. If the input ends while still filling a block we push_back that block.
+ * Since we want to keep track of the exact number of stored bits we keep a counter for the stored blocks
+ * in the container and also for the bits actually used in the last block.
+ *
+ * This design has the advantage that we can easily implement arithmetic operators using the simple school methods
+ * of addition, subtraction and multiplication.
+ * For division and modulo we use the binary version of the long division algorithm as it is described here:
+ * https://en.wikipedia.org/wiki/Division_algorithm#long_division
+ *
+ * Comparison operators are also largely based on comparing the number of blocks and used bits first and
+ * only in extreme cases iterate over the entire array.
+ *
+ * Accumulative operators are implemented by reusing binary arithmetic operators.
+ * Bit shift operators make a simplification by first computing the number of entire blocks that will be added in case
+ * of operator<< or cut off in case of operator>>.
+ *
+ * Memory management is mostly done by the functions reserve() and shrink() or in case of constructors by hand.
+ * In general memory management aims to give all aint objects a certain buffer to prevent immediate reallocation after
+ * arithmetic operations like for instance operator+=.
+ * The function shrink() is intended to free used memory not needed anymore (like after operator-=) while still
+ * leaving the number some memory reserve
+ *
+ *
+ */
 #include <iostream>
-#include "aint.h"
-
+#include "aint.hpp"
 
 // public member functions
 
@@ -45,7 +107,7 @@ aint::aint(const aint& other)
 
         bits_used = other.bits_used;
 
-        storage = new uint32_t[capacity];
+        storage = new uint32_t[capacity]{0};
 
         for(size_t i1 = 0; i1 < number_blocks; ++i1)
             storage[i1] = other.storage[i1];
@@ -360,29 +422,34 @@ std::istream& operator>>(std::istream& in, aint& num)
 {
     // if the users doesn't enter any valid number at all num shall take the value of zero
     // the sequence has to end with "1" otherwise there is no guarantee for the correct functionality of aint
+
     aint temp{0};
 
     uint32_t block = 0;
 
     size_t counter = 0;
 
-    // return type for istream.get() is int
-    int input = 0;
+    // get rid of leading whitespaces
+    while(std::isspace(in.peek()))
+        in.get();
 
-    while((input = in.get()) != '\n')
+    // return type for istream.peek() is int
+    int input = in.peek();
+
+    while((input == '0') || (input == '1'))
     {
-        if(input == '1')
+        if (input == '1')
         {
             block |= (1 << counter);
 
             ++counter;
         }
-        else if(input == '0')
+
+        else if (input == '0')
             ++counter;
-        // ignore all other characters
 
         // check if the current block is full
-        if(counter == 32)
+        if (counter == 32)
         {
             temp.push_back(block, counter, true);
 
@@ -390,16 +457,93 @@ std::istream& operator>>(std::istream& in, aint& num)
 
             counter = 0;
         }
+
+        in.get();
+
+        input = in.peek();
     }
 
-    // check if '\n' popped up while still filling a block
-    if(block)
+    // check if a non binary symbol popped up while still filling a block
+    if (block)
         temp.push_back(block, counter, true);
 
     num = std::move(temp);
 
     return in;
 }
+
+
+/*
+// different solution -> also not working when used like while(std::cin >> aint)
+std::istream& operator>>(std::istream& in, aint& num)
+{
+    aint temp{};
+
+    uint32_t block = 32;
+
+    size_t counter = 0;
+
+    char input = 0;
+
+    while(true)
+    {
+        if(!in.good())
+        {
+            in.setstate(std::ios::failbit);
+
+            return in;
+        }
+
+        input = static_cast<char>(in.peek());
+
+        if(!std::isspace(input))
+            break;
+
+        in.get();
+    }
+
+    if(!in.good())
+        return in;
+
+    if((input != '0') && (input != '1'))
+    {
+        in.setstate(std::ios::failbit);
+
+        return in;
+    }
+
+    input = static_cast<char>(in.peek());
+
+    while(in.good() && ((input == '0') || (input == '1')))
+    {
+        if (input == '1')
+            block |= (1 << counter);
+
+        ++counter;
+
+        // check if the current block is full
+        if (counter == 32)
+        {
+            temp.push_back(block, counter, true);
+
+            block = 0;
+
+            counter = 0;
+        }
+
+        in.get();
+
+        input = static_cast<char>(in.peek());
+    }
+
+    // check if terminating symbol popped up while still filling a block
+    if (block)
+        temp.push_back(block, counter, true);
+
+    num = std::move(temp);
+
+    return in;
+}*/
 
 
 // check for equal values
@@ -684,12 +828,13 @@ aint operator/(const aint& a, const aint& b)
 
     }
 
+    // quotient might be very small and requires less memory
     quotient.shrink();
 
     return quotient;
 }
 
-// TODO: check if any changes must be made from division template
+
 //  return the remainder of dividing the first number by the second number
 aint operator%(const aint& a, const aint& b)
 {
@@ -736,6 +881,7 @@ aint operator%(const aint& a, const aint& b)
 
     }
 
+    // remainder might be very small and requires less memory
     remainder.shrink();
 
     return remainder;
@@ -835,4 +981,3 @@ aint operator>>(const aint& num, size_t shifts)
 
     return result;
 }
-
