@@ -160,8 +160,7 @@ aint& aint::operator=(const uint32_t other)
 // copy assignment
 aint& aint::operator=(const aint& other)
 {
-    if(this == &other)
-        return *this;
+    // it is the users responsibility to make sure no self assignment is happening
 
     // release owned resources
     delete[] storage;
@@ -380,6 +379,32 @@ void aint::shrink()
 
 // non-member functions
 
+// output in correct bit order
+std::ostream& operator<<(std::ostream& out, const aint& num)
+{
+    if(num.number_blocks)
+    {
+        for(size_t i1 = num.number_blocks; i1 > 0; --i1)
+        {
+            size_t bits = 32;
+
+            if(i1 == num.number_blocks)
+                bits = num.bits_used;
+
+            while(bits > 0)
+            {
+                (num.storage[i1-1] & (1<<(bits-1))) ? out << "1" : out << "0";
+
+                --bits;
+            }
+        }
+    }
+    else
+        out << "0";
+
+    return out;
+}
+/*
 // output as bits in reverse order (from LSB to MSB)
 std::ostream& operator<<(std::ostream& out, const aint& num)
 {
@@ -415,7 +440,7 @@ std::ostream& operator<<(std::ostream& out, const aint& num)
     }
 
     return out;
-}
+}*/
 
 
 // input from a stream of 1s and 0s where the order is reversed i.e. LSB to MSB
@@ -638,10 +663,6 @@ aint operator+(const aint& a, const aint& b)
     aint result{};
 
     // reserve enough memory to store addition result and have some extra space
-    result.reserve( a.number_blocks >= b.number_blocks
-                    ? static_cast<size_t>(a.number_blocks * 1.5l) + 1
-                    : static_cast<size_t>(b.number_blocks * 1.5l) + 1);
-
     result.reserve(a.number_blocks >= b.number_blocks
                    ? ((3 * a.number_blocks) / 2  +1)
                    : ((3 * b.number_blocks) / 2 + 1));
@@ -705,6 +726,8 @@ aint operator-(const aint& a, const aint& b)
             neg.push_back(~static_cast<uint32_t>(0), 32, true);
     }
 
+    // so far only ones complement has been calculated
+    // therefore adding 1 will give twos complement
     neg += aint{1};
 
     // add result and neg together
@@ -748,7 +771,7 @@ aint operator*(const aint& a, const aint& b)
     {
         for(size_t i2 = 0; i2 < a.number_blocks; ++i2)
         {
-            mult_res = a.storage[i2] * b.storage[i1];
+            mult_res = static_cast<uint64_t>(a.storage[i2]) * static_cast<uint64_t>(b.storage[i1]);
 
             // write the potential overflow to the correct position in result
             for(size_t i3 = i1 + i2; mult_res > 0; ++i3)

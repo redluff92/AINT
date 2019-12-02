@@ -6,7 +6,9 @@
 
 aint gcd(aint a, aint b) {
     if(a<b) a.swap(b);
+    size_t iteration = 0;
     for(;;) {
+        std::cout << "Called loop at iteration: " << iteration++ << " with b: " << b << std::endl;
         if(b.zero()) return a;
         a%=b;
         a.swap(b);
@@ -35,15 +37,17 @@ int main() {
 
 int main()
 {
-    aint number1{};
-
-    aint number2{};
+    aint number1{}, number2{0};
 
     std::cin >> number1;
 
-    std::cin >> number2;
+    std::cout << number1 << std::endl;
 
-    std::cout << gcd(number1, number2) << std::endl;
+    //std::cin >> number2;
+
+    //std::cout << number2 << std::endl;
+
+    std::cout << (number1 * aint{7}) << std::endl;
 
     return 0;
 }
