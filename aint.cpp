@@ -101,7 +101,7 @@ aint::aint(const aint& other)
         // intended cropping when converting to size_t
         // reserve some headroom to avoid immediate reallocation for arithmetic operators
         // don't use other.capacity since it might be that other.capacity == other.number_blocks already
-        capacity = static_cast<size_t>(other.number_blocks * 1.5l) + 1;
+        capacity = (3 * other.number_blocks) / 2 +1;
 
         number_blocks = other.number_blocks;
 
@@ -169,7 +169,7 @@ aint& aint::operator=(const aint& other)
     // intended cropping when converting to size_t
     // reserve some headroom to avoid immediate reallocation for arithmetic operators
     // don't use other.capacity since it might be that other.capacity == other.number_blocks already
-    capacity = static_cast<size_t>(other.number_blocks * 1.5l) + 1;
+    capacity = (3 * other.number_blocks) / 2 +1;
 
     number_blocks = other.number_blocks;
 
@@ -317,7 +317,7 @@ void aint::push_back(uint32_t block, size_t counter, bool isvalid)
     bits_used = counter;
 
     if(number_blocks == capacity)
-        reserve(static_cast<size_t>(number_blocks * 1.5l) + 1);
+        reserve((3 * number_blocks) /2 +1);
 
     storage[number_blocks] = block;
 
@@ -374,9 +374,8 @@ void aint::shrink()
         bits_used = bits;
     }
 
-    if(capacity > (number_blocks * 1.5l + 1))
-        reserve(static_cast<size_t>(number_blocks * 1.5l) +1);
-
+    if(capacity > ((3 - number_blocks) / 2 +1))
+        reserve((3 * number_blocks) / 2 + 1);
 }
 
 // non-member functions
@@ -441,14 +440,9 @@ std::istream& operator>>(std::istream& in, aint& num)
     while((input == '0') || (input == '1'))
     {
         if (input == '1')
-        {
             block |= (1 << counter);
 
-            ++counter;
-        }
-
-        else if (input == '0')
-            ++counter;
+        ++counter;
 
         // check if the current block is full
         if (counter == 32)
@@ -648,6 +642,10 @@ aint operator+(const aint& a, const aint& b)
                     ? static_cast<size_t>(a.number_blocks * 1.5l) + 1
                     : static_cast<size_t>(b.number_blocks * 1.5l) + 1);
 
+    result.reserve(a.number_blocks >= b.number_blocks
+                   ? ((3 * a.number_blocks) / 2  +1)
+                   : ((3 * b.number_blocks) / 2 + 1));
+
     uint64_t add_res = 0;
 
     uint64_t overflow = 0;
@@ -742,7 +740,7 @@ aint operator*(const aint& a, const aint& b)
     aint result{};
 
     // reserve enough memory to store multiplication result and have some extra space
-    result.reserve(static_cast<size_t>((a.number_blocks + b.number_blocks) * 1.5l) +1);
+    result.reserve((3 * (a.number_blocks + b.number_blocks)) / 2 +1);
 
     uint64_t mult_res = 0;
 
@@ -906,10 +904,10 @@ aint operator<<(const aint& num, size_t shifts)
     // reserve memory for the result and additional space
     // since numbers can use up space for additional blocks very quickly when shifting
     // reservation of memory is limited to 50 additional blocks as a buffer
-    result.reserve(static_cast<size_t>((num.number_blocks + add_blocks) * 1.5l) +1
-                   < (num.number_blocks + add_blocks + 50)
-                   ? static_cast<size_t>((num.number_blocks + add_blocks) * 1.5l) +1
-                   : (num.number_blocks + add_blocks + 50));
+    result.reserve(((3 * (num.number_blocks + add_blocks)) / 2 +1)
+                    < (num.number_blocks + add_blocks + 50)
+                    ? ((3 * (num.number_blocks + add_blocks)) / 2 +1)
+                    : (num.number_blocks + add_blocks + 50));
 
     size_t counter_shifts = (32 - shifts);
 
@@ -957,7 +955,7 @@ aint operator>>(const aint& num, size_t shifts)
         return result;
 
     // reserve memory for the result and additional space
-    result.reserve(static_cast<size_t>((num.number_blocks - cut_blocks) *1.5l) +1);
+    result.reserve(((3 * (num.number_blocks - cut_blocks)) /2 +1));
 
     size_t counter_shifts = (32 - shifts);
 
