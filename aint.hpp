@@ -14,7 +14,7 @@ class aint final
 {
 public:
 
-    explicit aint(const uint32_t = 0);
+    aint(const uint32_t = 0);
 
     aint(const aint&);
 
@@ -85,17 +85,17 @@ public:
 private:
 
     // reserved storage
-    size_t capacity = 0;
+    size_t capacity;
 
     // actual size of the array i.e. number of used uint32_ts
-    size_t number_blocks = 0;
+    size_t number_blocks;
 
     // array containing the number
     // the least significant block is at position [0] but the bits within a specific block are ordered from MSB to LSB
-    uint32_t* storage = nullptr;
+    uint32_t* storage;
 
     // keep track of how many bits in the last i.e. most significant block are actually used
-    size_t bits_used = 0;
+    size_t bits_used;
 
     // internal functions for memory management
     void push_back(uint32_t, size_t = 0, bool = false);

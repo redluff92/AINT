@@ -29,8 +29,6 @@
  * ! As mentioned above the program finishes with the correct exit code and when inspected in a debugger one can see
  * ! that variables get updated and computed correctly.
  * !
- * ! Again, this is not an error in the arithmetic operators but simply a bug in the io-streams
- * ! so the program can be tested using above described for loops
  *
  *
  * The program works roughly like this:
@@ -49,6 +47,7 @@
  * of addition, subtraction and multiplication.
  * For division and modulo we use the binary version of the long division algorithm as it is described here:
  * https://en.wikipedia.org/wiki/Division_algorithm#long_division
+ * !!! There is a bug in this function which will yield wrong results but I simply can't find it !!!
  *
  * Comparison operators are also largely based on comparing the number of blocks and used bits first and
  * only in extreme cases iterate over the entire array.
@@ -71,7 +70,7 @@
 // public member functions
 
 // constructors for "small" long numbers
-aint::aint(const uint32_t value)
+aint::aint(const uint32_t value) : capacity{0}, number_blocks{0}, storage{nullptr}, bits_used{0}
 {
     if(value != 0)
     {
@@ -94,7 +93,7 @@ aint::aint(const uint32_t value)
 
 
 // copy constructor
-aint::aint(const aint& other)
+aint::aint(const aint& other) : capacity{0}, number_blocks{0}, storage{nullptr}, bits_used{0}
 {
     if(other.number_blocks)
     {
@@ -116,7 +115,7 @@ aint::aint(const aint& other)
 
 
 // move constructor
-aint::aint(aint&& other) noexcept
+aint::aint(aint&& other) noexcept : capacity{0}, number_blocks{0}, storage{nullptr}, bits_used{0}
 {
     if(other.number_blocks)
     {
@@ -218,20 +217,14 @@ aint& aint::operator=(aint&& other) noexcept
 // check if object contains a number
 bool aint::zero() const
 {
-    return !number_blocks;
+    return !storage;
 }
 
 
 // swaps values of two aints
 void aint::swap(aint& other)
 {
-    std::swap(capacity, other.capacity);
-
-    std::swap(number_blocks, other.number_blocks);
-
-    std::swap(storage, other.storage);
-
-    std::swap(bits_used, other.bits_used);
+    std::swap(*this, other);
 }
 
 
@@ -580,7 +573,7 @@ bool operator==(const aint& a, const aint& b)
 
     else
     {
-        // at this point a.number_blocks == b.number_blocks
+        // at this point a.number_blocks == b.number_blocks and a.bits_used == b.bits_used
         for(size_t i1 = 0; i1 < a.number_blocks; ++i1)
         {
             if(a.storage[i1] != b.storage[i1])
@@ -606,27 +599,30 @@ bool operator<(const aint& a, const aint& b)
     if(b.zero())
         return false;
 
-    else if(a.number_blocks < b.number_blocks)
+    if(a.number_blocks < b.number_blocks)
         return true;
 
-    else if(a.number_blocks > b.number_blocks)
+    if(a.number_blocks > b.number_blocks)
         return false;
 
-    else if((a.number_blocks == b.number_blocks) && (a.bits_used < b.bits_used))
+    if((a.number_blocks == b.number_blocks) && (a.bits_used < b.bits_used))
         return true;
 
-    else if((a.number_blocks == b.number_blocks) && (a.bits_used > b.bits_used))
+    if((a.number_blocks == b.number_blocks) && (a.bits_used > b.bits_used))
         return false;
 
-    else
-        // at this point a.number_blocks == b.number_blocks
-        for(size_t i1 = a.number_blocks; i1 > 0; --i1)
-        {
-            if(a.storage[i1-1] < b.storage[i1-1])
-                return true;
-        }
+    // at this point a.number_blocks == b.number_blocks and a.bits_used == b.bits_used
+    for(size_t i1 = a.number_blocks; i1 > 0; --i1)
+    {
+        if(a.storage[i1 - 1] < b.storage[i1 - 1])
+            return true;
 
-        return false;
+        else if(a.storage[i1 -1] > b.storage[i1 - 1])
+            return false;
+    }
+
+    // in case they are equal
+    return false;
 }
 
 
@@ -696,6 +692,66 @@ aint operator+(const aint& a, const aint& b)
 }
 
 
+
+
+// subtract number b from number a
+aint operator-(const aint& a, const aint& b)
+{
+    // since  numbers can't be negative zero will be returned instead
+    if(a.zero() || b.zero())
+        return a;
+
+    else if(a <= b)
+        return aint{};
+
+    aint result{};
+
+    // since the result of subtraction can never be larger than a memory reservation can be done more conservative
+    result.reserve(a.number_blocks + 1);
+
+    int64_t sub_res = 0;
+
+    int64_t overflow = 0;
+
+    for(int i1 = 0; i1 < a.number_blocks; ++i1)
+    {
+        if (i1 < b.number_blocks)
+        {
+            sub_res += a.storage[i1];
+
+            sub_res -= static_cast<int64_t>(b.storage[i1]);
+        }
+
+        else
+            sub_res += a.storage[i1];
+
+        if(sub_res >= 0)
+        {
+            result.storage[i1] = static_cast<uint32_t>(sub_res);
+
+            sub_res = 0;
+        }
+
+        else
+        {
+            // avoid (1<<32) because shift would be larger than register width
+            overflow = 4'294'967'296;
+
+            overflow += sub_res;
+
+            result.storage[i1] = static_cast<uint32_t>(overflow);
+
+            sub_res = -1;
+        }
+    }
+
+    result.shrink();
+
+    return result;
+}
+
+
+/*
 // subtract b from a or return 0 if a <= b
 aint operator-(const aint& a, const aint& b)
 {
@@ -751,7 +807,7 @@ aint operator-(const aint& a, const aint& b)
     result.shrink();
 
     return result;
-}
+}*/
 
 
 // multiply two numbers together
@@ -776,7 +832,7 @@ aint operator*(const aint& a, const aint& b)
             // write the potential overflow to the correct position in result
             for(size_t i3 = i1 + i2; mult_res > 0; ++i3)
             {
-                mult_res += result.storage[i3];
+                mult_res += static_cast<uint64_t>(result.storage[i3]);
 
                 // intended cropping when converting to uint32_t
                 result.storage[i3] = static_cast<uint32_t>(mult_res);
@@ -804,6 +860,53 @@ aint operator*(const aint& a, const aint& b)
     return result;
 }
 
+/*
+// divide the first number by the second
+aint operator/(const aint& a, const aint& b)
+{
+    // division by zero will return zero
+    if (b.zero() || (a < b))
+        return aint{};
+
+    if(a == b)
+        return aint{1};
+
+    if(b == aint{1})
+        return a;
+
+    aint dividend{a};
+
+    aint quotient{};
+
+    // since the quotient can never be larger than the dividend memory reservation can be more conservative
+    quotient.reserve(a.number_blocks + 1);
+
+    while(dividend >= b)
+    {
+        size_t shifts = ((dividend.number_blocks - 1) * 32 + dividend.bits_used)
+                       -((b.number_blocks - 1) * 32 + b.bits_used);
+
+        if(dividend >= (b<<shifts))
+        {
+
+            dividend -= (b << shifts);
+
+            quotient += (aint{1} << shifts);
+        }
+        else
+        {
+            --shifts;
+
+            dividend -= (b << shifts);
+
+            quotient += (aint{1} << shifts);
+        }
+    }
+
+    quotient.shrink();
+
+    return quotient;
+}*/
 
 // divide the first number by the second number (integer division)
 aint operator/(const aint& a, const aint& b)
@@ -811,6 +914,9 @@ aint operator/(const aint& a, const aint& b)
     // division by zero will return zero
     if (b.zero() || (a < b))
         return aint{};
+
+    if(a == b)
+        return aint{1};
 
     if(b == aint{1})
         return a;
@@ -830,25 +936,23 @@ aint operator/(const aint& a, const aint& b)
 
         for(size_t i2 = used_bits; i2 > 0; --i2)
         {
-            uint32_t  bit = (a.storage[i1-1] & (1 << (i2-1)));
+            uint32_t  bit = (a.storage[i1-1] & static_cast<uint32_t>(1 << (i2-1)));
 
-            if(!remainder.zero())
-                remainder <<= 1;
+            remainder <<= 1;
 
             if(remainder.zero() && bit)
                 remainder = aint{1};
 
-            else if(bit)
+            else if(!remainder.zero() && bit)
                 remainder.storage[0] |= 1;
 
             if(remainder >= b)
             {
                 remainder -= b;
 
-                quotient.storage[i1-1] |= (1 << (i2-1));
+                quotient.storage[i1-1] |= static_cast<uint32_t>(1 << (i2-1));
             }
         }
-
     }
 
     // quotient might be very small and requires less memory
@@ -857,6 +961,51 @@ aint operator/(const aint& a, const aint& b)
     return quotient;
 }
 
+
+/*
+// return the remainder of dividing the first number by the second number
+aint operator%(const aint& a, const aint& b)
+{
+    // modulo by zero will return the original number
+    if (b.zero() || (a < b))
+        return a;
+
+    if((b == aint{1}) || (a == b))
+        return aint{};
+
+    aint dividend{a};
+
+    aint quotient{};
+
+    // since the quotient can never be larger than the dividend memory reservation can be more conservative
+    quotient.reserve(a.number_blocks + 1);
+    aint before{dividend};
+    while(dividend >= b)
+    {
+        size_t shifts = ((dividend.number_blocks - 1) * 32 + dividend.bits_used)
+                        -((b.number_blocks - 1) * 32 + b.bits_used);
+
+        if(dividend >= (b<<shifts))
+        {
+
+            dividend -= (b << shifts);
+
+            quotient += (aint{1} << shifts);
+        }
+        else
+        {
+            --shifts;
+
+            dividend -= (b << shifts);
+
+            quotient += (aint{1} << shifts);
+        }
+    }
+
+    dividend.shrink();
+
+    return dividend;
+}*/
 
 //  return the remainder of dividing the first number by the second number
 aint operator%(const aint& a, const aint& b)
@@ -950,7 +1099,7 @@ aint operator<<(const aint& num, size_t shifts)
     {
         ++result.number_blocks;
 
-        result.bits_used = num.bits_used + shifts - 32;
+        result.bits_used = ((num.bits_used + shifts) - 32);
     }
 
     else
